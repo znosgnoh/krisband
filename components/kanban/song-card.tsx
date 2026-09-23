@@ -164,14 +164,18 @@ const SongCardContent = memo(function SongCardContent({
 
   return (
     <article
-      className={`rounded-lg border border-border bg-surface-elevated p-3 shadow-sm ${
+      className={`group relative overflow-hidden rounded-xl border border-border/80 bg-surface-elevated p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/35 hover:shadow-[0_8px_24px_rgba(0,0,0,0.28)] ${
         isDragging && !isOverlay ? "opacity-40" : ""
-      } ${isOverlay ? "shadow-lg ring-2 ring-accent/40" : ""}`}
+      } ${isOverlay ? "scale-[1.02] shadow-lg ring-2 ring-accent/50" : ""}`}
     >
-      <div className="flex items-start gap-2">
+      <span
+        className="absolute inset-y-0 left-0 w-1 bg-accent/70 transition-colors duration-200 group-hover:bg-primary"
+        aria-hidden
+      />
+      <div className="flex items-start gap-2 pl-1">
         <button
           type="button"
-          className="mt-0.5 flex h-11 w-8 shrink-0 touch-none items-center justify-center rounded-md text-muted hover:bg-background hover:text-foreground"
+          className="mt-0.5 flex h-11 w-8 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-muted transition-colors hover:bg-background hover:text-foreground active:cursor-grabbing"
           aria-label={`Drag ${song.title}`}
           {...dragHandleProps}
         >
@@ -183,12 +187,12 @@ const SongCardContent = memo(function SongCardContent({
             {song.title}
           </h3>
           <p className="flex items-center gap-1.5 truncate text-xs text-muted">
-            <Mic className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            <Mic className="h-3.5 w-3.5 shrink-0 text-accent" aria-hidden />
             <span className="truncate">{song.singer}</span>
           </p>
           <p className="flex items-center gap-1.5 truncate text-xs text-muted">
             <User className="h-3.5 w-3.5 shrink-0" aria-hidden />
-            <span className="truncate">{song.addedBy}</span>
+            <span className="truncate">added by {song.addedBy}</span>
           </p>
         </div>
 
@@ -197,7 +201,7 @@ const SongCardContent = memo(function SongCardContent({
             <button
               ref={menuButtonRef}
               type="button"
-              className="flex h-11 w-11 items-center justify-center rounded-md text-muted hover:bg-background hover:text-foreground"
+              className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-md text-muted transition-colors hover:bg-background hover:text-foreground"
               aria-label={`Actions for ${song.title}`}
               aria-expanded={menuOpen}
               aria-haspopup="menu"

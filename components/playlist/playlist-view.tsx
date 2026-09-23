@@ -57,8 +57,13 @@ export function PlaylistView() {
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-4 py-2">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Playlist</h1>
-        <p className="mt-1 text-sm leading-relaxed text-muted">
+        <p className="font-display text-xs tracking-[0.2em] text-accent uppercase">
+          Krisband
+        </p>
+        <h1 className="font-display mt-1 text-2xl leading-none sm:text-3xl">
+          Playlist
+        </h1>
+        <p className="mt-2 text-sm leading-relaxed text-muted">
           {doneSongs.length === 0
             ? "Performance-ready songs with YouTube evidence."
             : `${songCountLabel} — tap a video to rehearse.`}
@@ -67,11 +72,11 @@ export function PlaylistView() {
 
       {doneSongs.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-4 px-2 py-16 text-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-elevated text-accent">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/15 text-primary">
             <ListMusic className="h-8 w-8" aria-hidden />
           </div>
           <div className="max-w-xs space-y-2">
-            <h2 className="text-lg font-semibold">No songs yet</h2>
+            <h2 className="font-display text-lg">No songs yet</h2>
             <p className="text-sm leading-relaxed text-muted">
               Mark songs as done on the board with a YouTube link to build your
               performance playlist.
@@ -79,7 +84,7 @@ export function PlaylistView() {
           </div>
           <Link
             href="/"
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border bg-surface-elevated px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface"
+            className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-lg border border-border bg-surface-elevated px-4 py-2 text-sm font-medium text-foreground transition-colors duration-200 hover:border-accent/40 hover:bg-surface"
           >
             <LayoutGrid className="h-4 w-4" aria-hidden />
             Go to board

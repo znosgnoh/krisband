@@ -14,7 +14,7 @@ export function AppNav() {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-surface/95 backdrop-blur-md"
+      className="fixed inset-x-0 bottom-0 z-50 border-t border-border/90 bg-surface/90 backdrop-blur-md"
       style={{ paddingBottom: "var(--safe-bottom)" }}
       aria-label="Main navigation"
     >
@@ -27,9 +27,9 @@ export function AppNav() {
             <li key={href} className="flex-1">
               <Link
                 href={href}
-                className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-3 py-2 text-xs font-medium transition-colors ${
+                className={`flex min-h-14 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl px-3 py-2 text-xs font-medium transition-colors duration-200 ${
                   isActive
-                    ? "bg-accent/15 text-accent"
+                    ? "bg-primary/15 text-primary"
                     : "text-muted hover:bg-surface-elevated hover:text-foreground"
                 }`}
                 aria-current={isActive ? "page" : undefined}

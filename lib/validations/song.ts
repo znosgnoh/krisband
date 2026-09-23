@@ -28,18 +28,3 @@ export const doneSongSchema = songFormSchema.extend({
 
 export type SongFormValues = z.infer<typeof songFormSchema>;
 export type DoneSongValues = z.infer<typeof doneSongSchema>;
-
-export const songRecordSchema = z.object({
-  id: z.string().min(1),
-  title: z.string().min(1),
-  singer: z.string().min(1),
-  addedBy: z.string().min(1),
-  status: z.enum(["to_practice", "practicing", "done"]),
-  youtubeUrl: z.string().optional(),
-  order: z.number().int().nonnegative(),
-});
-
-export const importPayloadSchema = z.object({
-  version: z.literal(1).optional(),
-  songs: z.array(songRecordSchema).min(0),
-});

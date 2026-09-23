@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { STORAGE_KEY } from "@/lib/constants";
+import { isSupabaseConfigured } from "@/lib/config";
+import { songSync } from "@/lib/song-sync";
 import type { Song, SongFormInput, SongStatus, SongUpdateInput } from "@/lib/types/song";
 import { isValidYouTubeUrl, normalizeYouTubeUrl } from "@/lib/youtube";
 
@@ -11,7 +13,10 @@ type MoveSongResult =
 interface SongState {
   songs: Song[];
   _hasHydrated: boolean;
+  _syncError: string | null;
   setHasHydrated: (value: boolean) => void;
+  setSyncError: (error: string | null) => void;
+  setSongsFromRemote: (songs: Song[]) => void;
   addSong: (data: SongFormInput) => Song;
   updateSong: (id: string, data: SongUpdateInput) => void;
   deleteSong: (id: string) => void;
@@ -33,6 +38,16 @@ function nextOrderInColumn(songs: Song[], status: SongStatus): number {
   const columnSongs = songs.filter((song) => song.status === status);
   if (columnSongs.length === 0) return 0;
   return Math.max(...columnSongs.map((song) => song.order)) + 1;
+}
+
+function reportSyncError(error: unknown): void {
+  const message =
+    error instanceof Error ? error.message : "Could not sync with database";
+  useSongStore.getState().setSyncError(message);
+}
+
+function syncInBackground(task: () => Promise<void>): void {
+  void task().catch(reportSyncError);
 }
 
 const safeLocalStorage = {
@@ -62,12 +77,27 @@ const safeLocalStorage = {
   },
 };
 
+const hybridStorage = {
+  getItem: (name: string): string | null => safeLocalStorage.getItem(name),
+  setItem: (name: string, value: string): void => {
+    if (!isSupabaseConfigured()) {
+      safeLocalStorage.setItem(name, value);
+    }
+  },
+  removeItem: (name: string): void => {
+    safeLocalStorage.removeItem(name);
+  },
+};
+
 export const useSongStore = create<SongState>()(
   persist(
     (set, get) => ({
       songs: [],
       _hasHydrated: false,
+      _syncError: null,
       setHasHydrated: (value) => set({ _hasHydrated: value }),
+      setSyncError: (error) => set({ _syncError: error }),
+      setSongsFromRemote: (songs) => set({ songs, _syncError: null }),
 
       addSong: (data) => {
         const songs = get().songs;
@@ -80,29 +110,42 @@ export const useSongStore = create<SongState>()(
           order: nextOrderInColumn(songs, "to_practice"),
         };
 
-        set({ songs: [...songs, newSong] });
+        set({ songs: [...songs, newSong], _syncError: null });
+        syncInBackground(() => songSync.upsert(newSong));
         return newSong;
       },
 
       updateSong: (id, data) => {
-        set({
-          songs: get().songs.map((song) => {
-            if (song.id !== id) return song;
+        const songs = get().songs;
+        let updatedSong: Song | null = null;
 
-            return {
-              ...song,
-              ...(data.title !== undefined && { title: data.title.trim() }),
-              ...(data.singer !== undefined && { singer: data.singer.trim() }),
-              ...(data.addedBy !== undefined && {
-                addedBy: data.addedBy.trim(),
-              }),
-            };
-          }),
+        const nextSongs = songs.map((song) => {
+          if (song.id !== id) return song;
+
+          updatedSong = {
+            ...song,
+            ...(data.title !== undefined && { title: data.title.trim() }),
+            ...(data.singer !== undefined && { singer: data.singer.trim() }),
+            ...(data.addedBy !== undefined && {
+              addedBy: data.addedBy.trim(),
+            }),
+          };
+          return updatedSong;
         });
+
+        set({ songs: nextSongs, _syncError: null });
+
+        if (updatedSong) {
+          syncInBackground(() => songSync.upsert(updatedSong!));
+        }
       },
 
       deleteSong: (id) => {
-        set({ songs: get().songs.filter((song) => song.id !== id) });
+        set({
+          songs: get().songs.filter((song) => song.id !== id),
+          _syncError: null,
+        });
+        syncInBackground(() => songSync.remove(id));
       },
 
       moveSong: (id, status, youtubeUrl) => {
@@ -135,7 +178,8 @@ export const useSongStore = create<SongState>()(
           youtubeUrl: normalizedYoutubeUrl,
         };
 
-        set({ songs: [...songsWithoutCurrent, updatedSong] });
+        set({ songs: [...songsWithoutCurrent, updatedSong], _syncError: null });
+        syncInBackground(() => songSync.upsert(updatedSong));
         return { ok: true };
       },
 
@@ -160,13 +204,16 @@ export const useSongStore = create<SongState>()(
           reordered.map((item, index) => [item.id, index] as const),
         );
 
-        set({
-          songs: songs.map((item) => {
-            const order = orderMap.get(item.id);
-            if (order === undefined) return item;
-            return { ...item, order };
-          }),
+        const nextSongs = songs.map((item) => {
+          const order = orderMap.get(item.id);
+          if (order === undefined) return item;
+          return { ...item, order };
         });
+
+        set({ songs: nextSongs, _syncError: null });
+
+        const changedSongs = nextSongs.filter((item) => orderMap.has(item.id));
+        syncInBackground(() => songSync.upsertMany(changedSongs));
       },
 
       getSongsByStatus: (status) => {
@@ -176,14 +223,19 @@ export const useSongStore = create<SongState>()(
       },
 
       replaceSongs: (songs) => {
-        set({ songs });
+        set({ songs, _syncError: null });
+        syncInBackground(() => songSync.replaceAll(songs));
       },
     }),
     {
       name: STORAGE_KEY,
-      storage: createJSONStorage(() => safeLocalStorage),
+      storage: createJSONStorage(() => hybridStorage),
       partialize: (state) => ({ songs: state.songs }),
       skipHydration: true,
     },
   ),
 );
+
+export function shouldUseLocalPersistence(): boolean {
+  return !isSupabaseConfigured();
+}

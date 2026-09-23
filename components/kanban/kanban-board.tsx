@@ -218,13 +218,13 @@ export function KanbanBoard() {
 
   if (!hasHydrated) {
     return (
-      <div className="flex flex-1 flex-col gap-4 py-4">
-        <div className="h-8 w-40 animate-pulse rounded-lg bg-surface-elevated" />
+      <div className="flex min-h-0 flex-1 flex-col gap-3">
+        <div className="h-7 w-36 animate-pulse rounded-lg bg-surface-elevated" />
         <div className="kanban-board-area kanban-scroll -mx-4 flex gap-0 overflow-hidden lg:mx-0 lg:min-h-0 lg:gap-4">
           {SONG_STATUSES.map((status) => (
             <div
               key={status}
-              className="kanban-column kanban-column-drop min-h-[var(--kanban-mobile-height)] animate-pulse rounded-xl bg-surface lg:min-h-[10rem] lg:w-auto lg:flex-1 lg:p-0"
+              className="kanban-column kanban-column-drop min-h-[var(--kanban-mobile-height)] animate-pulse rounded-2xl bg-surface lg:min-h-[10rem] lg:w-auto lg:flex-1 lg:p-0"
             />
           ))}
         </div>
@@ -234,12 +234,16 @@ export function KanbanBoard() {
 
   return (
     <>
-      <div className="flex flex-1 flex-col gap-4 py-2 min-h-0">
-        <header>
-          <h1 className="text-2xl font-semibold tracking-tight">Practice Board</h1>
-          <p className="mt-1 text-sm text-muted">
-            Drag songs between columns to track practice progress.
-          </p>
+      <div className="flex min-h-0 flex-1 flex-col gap-3">
+        <header className="flex items-end justify-between gap-3">
+          <div>
+            <h1 className="font-display text-xl leading-none tracking-wide text-foreground sm:text-2xl">
+              Practice board
+            </h1>
+            <p className="mt-1.5 text-sm text-muted">
+              Drag tracks through the set — queue, rehearsal, ready.
+            </p>
+          </div>
         </header>
 
         <DndContext
@@ -251,15 +255,15 @@ export function KanbanBoard() {
           <div className="kanban-board-area">
             <div className="kanban-scroll -mx-4 snap-x snap-mandatory overflow-x-auto pb-2 [scrollbar-width:thin] lg:mx-0 lg:min-h-0 lg:snap-none lg:overflow-visible lg:px-0">
               <div className="kanban-columns-row flex w-max gap-0 lg:grid lg:w-full lg:grid-cols-3 lg:gap-4">
-              {SONG_STATUSES.map((status) => (
-                <KanbanColumn
-                  key={status}
-                  status={status}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                  onMoveTo={handleMoveTo}
-                />
-              ))}
+                {SONG_STATUSES.map((status) => (
+                  <KanbanColumn
+                    key={status}
+                    status={status}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    onMoveTo={handleMoveTo}
+                  />
+                ))}
               </div>
             </div>
           </div>
@@ -272,7 +276,7 @@ export function KanbanBoard() {
 
       <button
         type="button"
-        className="fixed right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-white shadow-lg transition-colors hover:bg-accent-muted focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        className="fixed z-40 flex h-14 w-14 cursor-pointer items-center justify-center rounded-full bg-primary text-white shadow-[0_8px_28px_rgba(220,38,38,0.45)] transition-all duration-200 hover:scale-105 hover:bg-primary-muted focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         style={{
           bottom: "calc(5rem + var(--safe-bottom))",
           right: "max(1rem, var(--safe-right))",
