@@ -46,3 +46,42 @@ create policy "songs_anon_delete"
   using (true);
 
 alter publication supabase_realtime add table public.songs;
+
+-- One shared rehearsal plan per band board
+create table if not exists public.rehearsal_plans (
+  board_id text primary key,
+  scheduled_at timestamptz not null,
+  song_ids text[] not null default '{}',
+  weekly boolean not null default false,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.rehearsal_plans enable row level security;
+
+drop policy if exists "rehearsal_plans_anon_select" on public.rehearsal_plans;
+drop policy if exists "rehearsal_plans_anon_insert" on public.rehearsal_plans;
+drop policy if exists "rehearsal_plans_anon_update" on public.rehearsal_plans;
+drop policy if exists "rehearsal_plans_anon_delete" on public.rehearsal_plans;
+
+create policy "rehearsal_plans_anon_select"
+  on public.rehearsal_plans for select
+  to anon, authenticated
+  using (true);
+
+create policy "rehearsal_plans_anon_insert"
+  on public.rehearsal_plans for insert
+  to anon, authenticated
+  with check (true);
+
+create policy "rehearsal_plans_anon_update"
+  on public.rehearsal_plans for update
+  to anon, authenticated
+  using (true)
+  with check (true);
+
+create policy "rehearsal_plans_anon_delete"
+  on public.rehearsal_plans for delete
+  to anon, authenticated
+  using (true);
+
+alter publication supabase_realtime add table public.rehearsal_plans;

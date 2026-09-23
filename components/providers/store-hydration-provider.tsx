@@ -3,12 +3,19 @@
 import { useEffect, useRef } from "react";
 import { STORAGE_KEY } from "@/lib/constants";
 import { isSupabaseConfigured } from "@/lib/config";
+import { resolvePlan } from "@/lib/practice-schedule";
+import { rehearsalSync } from "@/lib/rehearsal-sync";
 import {
   fetchSongsFromRemote,
   subscribeToSongChanges,
 } from "@/lib/supabase/song-repository";
+import { subscribeToRehearsalPlanChanges } from "@/lib/supabase/rehearsal-repository";
 import { songSync } from "@/lib/song-sync";
-import { useRehearsalStore } from "@/store/rehearsal-store";
+import {
+  clearLocalRehearsalPlan,
+  readLocalRehearsalPlan,
+  useRehearsalStore,
+} from "@/store/rehearsal-store";
 import { shouldUseLocalPersistence, useSongStore } from "@/store/song-store";
 
 function readLocalSongs(): ReturnType<typeof useSongStore.getState>["songs"] {
@@ -33,10 +40,35 @@ function clearLocalSongs(): void {
   }
 }
 
-async function hydrateRehearsalStore(): Promise<void> {
+async function hydrateRehearsalFromRemote(): Promise<void> {
+  const setPlanFromRemote = useRehearsalStore.getState().setPlanFromRemote;
+  const remotePlan = await rehearsalSync.fetch();
+
+  if (remotePlan) {
+    const resolved = resolvePlan(remotePlan);
+    setPlanFromRemote(resolved);
+    if (resolved.scheduledAt !== remotePlan.scheduledAt) {
+      await rehearsalSync.upsert(resolved);
+    }
+    clearLocalRehearsalPlan();
+    return;
+  }
+
+  const localPlan = readLocalRehearsalPlan();
+  if (localPlan) {
+    const resolved = resolvePlan(localPlan);
+    setPlanFromRemote(resolved);
+    await rehearsalSync.upsert(resolved);
+    clearLocalRehearsalPlan();
+    return;
+  }
+
+  setPlanFromRemote(null);
+}
+
+async function hydrateRehearsalLocalOnly(): Promise<void> {
   await useRehearsalStore.persist.rehydrate();
   useRehearsalStore.getState().ensureCurrentPlan();
-  useRehearsalStore.getState().setHasHydrated(true);
 }
 
 export function StoreHydrationProvider({
@@ -47,22 +79,30 @@ export function StoreHydrationProvider({
   const setHasHydrated = useSongStore((state) => state.setHasHydrated);
   const setSongsFromRemote = useSongStore((state) => state.setSongsFromRemote);
   const setSyncError = useSongStore((state) => state.setSyncError);
+  const setRehearsalHydrated = useRehearsalStore((state) => state.setHasHydrated);
+  const setPlanFromRemote = useRehearsalStore((state) => state.setPlanFromRemote);
   const remoteRefreshRef = useRef(0);
+  const rehearsalRefreshRef = useRef(0);
 
   useEffect(() => {
-    let unsubscribeRealtime: (() => void) | undefined;
+    let unsubscribeSongs: (() => void) | undefined;
+    let unsubscribeRehearsal: (() => void) | undefined;
     let cancelled = false;
 
     async function hydrate() {
-      await hydrateRehearsalStore();
-
       if (!isSupabaseConfigured()) {
+        await hydrateRehearsalLocalOnly();
         useSongStore.persist.rehydrate();
-        if (!cancelled) setHasHydrated(true);
+        if (!cancelled) {
+          setRehearsalHydrated(true);
+          setHasHydrated(true);
+        }
         return;
       }
 
       try {
+        await hydrateRehearsalFromRemote();
+
         const remoteSongs = await songSync.fetchAll();
 
         if (cancelled) return;
@@ -81,7 +121,7 @@ export function StoreHydrationProvider({
           clearLocalSongs();
         }
 
-        unsubscribeRealtime = subscribeToSongChanges(async () => {
+        unsubscribeSongs = subscribeToSongChanges(async () => {
           const requestId = ++remoteRefreshRef.current;
 
           try {
@@ -98,9 +138,26 @@ export function StoreHydrationProvider({
             );
           }
         });
+
+        unsubscribeRehearsal = subscribeToRehearsalPlanChanges(async () => {
+          const requestId = ++rehearsalRefreshRef.current;
+
+          try {
+            const latest = await rehearsalSync.fetch();
+            if (cancelled || requestId !== rehearsalRefreshRef.current) return;
+            setPlanFromRemote(latest ? resolvePlan(latest) : null);
+          } catch (error) {
+            console.error(
+              error instanceof Error
+                ? error.message
+                : "Could not refresh rehearsal plan",
+            );
+          }
+        });
       } catch (error) {
         if (cancelled) return;
 
+        await hydrateRehearsalLocalOnly();
         useSongStore.persist.rehydrate();
         setSyncError(
           error instanceof Error
@@ -108,7 +165,10 @@ export function StoreHydrationProvider({
             : "Could not load songs from database",
         );
       } finally {
-        if (!cancelled) setHasHydrated(true);
+        if (!cancelled) {
+          setRehearsalHydrated(true);
+          setHasHydrated(true);
+        }
       }
     }
 
@@ -122,9 +182,16 @@ export function StoreHydrationProvider({
 
     return () => {
       cancelled = true;
-      unsubscribeRealtime?.();
+      unsubscribeSongs?.();
+      unsubscribeRehearsal?.();
     };
-  }, [setHasHydrated, setSongsFromRemote, setSyncError]);
+  }, [
+    setHasHydrated,
+    setSongsFromRemote,
+    setSyncError,
+    setRehearsalHydrated,
+    setPlanFromRemote,
+  ]);
 
   return <>{children}</>;
 }

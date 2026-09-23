@@ -48,6 +48,30 @@ export interface Database {
         };
         Relationships: [];
       };
+      rehearsal_plans: {
+        Row: {
+          board_id: string;
+          scheduled_at: string;
+          song_ids: string[];
+          weekly: boolean;
+          updated_at: string;
+        };
+        Insert: {
+          board_id: string;
+          scheduled_at: string;
+          song_ids?: string[];
+          weekly?: boolean;
+          updated_at?: string;
+        };
+        Update: {
+          board_id?: string;
+          scheduled_at?: string;
+          song_ids?: string[];
+          weekly?: boolean;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
